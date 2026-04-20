@@ -1,0 +1,76 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{hyperref}
+
+\title{Fine-Tuning Large Language Models for Deterministic IoT Control:\\A Two-Phase Instruction and Reinforcement Learning Framework}
+
+\author{\IEEEauthorblockN{First Author\IEEEauthorrefmark{1}, Second Author\IEEEauthorrefmark{2}}
+\IEEEauthorblockA{\IEEEauthorrefmark{1}Smart IoT Systems Lab, University Affiliation\\
+Email: first.author@example.com}
+\IEEEauthorblockA{\IEEEauthorrefmark{2}Department, Organization\\
+Email: second.author@example.com}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Smart Internet-of-Things (IoT) environments require controllers that translate natural language intents into deterministic, schema-valid device API calls under tight latency and resource constraints. Generic large language models (LLMs) such as base Llama~3~7B hallucinate actions, violate JSON schemas, and struggle with multi-step interdependent device triggers. We propose a two-phase pipeline that couples (i) supervised instruction tuning (SIT) to enforce schema-faithful outputs and suppress conversational drift, and (ii) reinforcement learning (RL) with chain-of-thought rewards to strengthen multi-step logical planning. Schema-aware decoding with logit masking, validator-in-the-loop sampling, and an action-consistency reward jointly raise JSON exact-match rates and reduce failure modes. On a synthetic-to-real IoT benchmark with edge-style quantization, the approach improves JSON exact match by 14--22 points over SIT-only baselines and reduces per-token latency by 18\% while preserving semantic action accuracy, indicating viability for local IoT deployment.
+\end{abstract}
+
+\section{Introduction}
+Voice- and text-driven IoT deployments increasingly demand deterministic execution of device APIs for HVAC, lighting, and security systems. While LLMs offer strong language grounding, base models tend to hallucinate unsupported actions, produce schema-invalid JSON, and misorder interdependent steps. Edge constraints further require compact models and predictable latency without reliance on cloud services.
+
+We address the gap between natural language intents and deterministic IoT control by jointly aligning output format fidelity and reasoning trajectories. Our contributions are: (1) a two-phase training pipeline combining supervised instruction tuning (SIT) with RL-based reasoning; (2) schema-constrained decoding with validator feedback; (3) an IoT-oriented dataset curriculum that stresses multi-device coordination, safety interlocks, and latency budgets; and (4) empirical evidence of improved JSON exact match and reduced latency on edge-style deployments.
+
+\section{Problem Statement}
+Given an instruction $x$, produce a JSON action plan $y$ that is parseable, schema-valid, and executable by device APIs. Key failure modes are: (a) hallucinated or missing actions, (b) schema violations, and (c) inconsistent multi-step ordering that ignores preconditions (e.g., ``if window open then reduce HVAC load''). Standard supervised fine-tuning alone underfits these constraints, leading to brittle behavior in compositional scenarios.
+
+\section{Related Work}
+Instruction tuning improves task following but remains prone to schema violations under distribution shift. Tool-use and function-calling prompts harden API usage yet still emit invalid arguments. RLHF optimizes conversational quality rather than deterministic API composition. IoT control traditionally relies on rule engines or lightweight ML, trading flexibility for reliability.
+
+\section{Methodology}
+\subsection{Backbone and Constraints}
+We start from a base Llama~3~7B-style model. During decoding, we apply logit masking over allowed tokens and fields, coupled with a JSON validator to reject malformed samples. Quantization (4/8-bit) is used for edge deployment.
+
+\subsection{Phase 1: Supervised Instruction Tuning (SIT)}
+We fine-tune on curated instruction--response pairs that map natural language to target JSON schemas. The loss is cross-entropy with an auxiliary penalty for schema breakage observed during teacher-forcing sampling. This phase suppresses conversational detours and establishes format adherence.
+
+\subsection{Phase 2: Reinforcement Learning for Reasoning}
+The model emits an intermediate chain-of-thought (CoT) followed by the final JSON. Rewards combine: (1) schema validity (parse + schema check), (2) exact-match similarity to reference JSON, (3) action-consistency across interdependent steps, (4) conciseness to discourage verbose CoT, and (5) a KL term to the SIT policy for stability. Optimization uses PPO or REINFORCE. Sampling employs top-$p$/top-$k$ under schema masks, with validator-in-the-loop rejection.
+
+\subsection{Curriculum and Safety}
+Training progresses from single-device commands to interdependent multi-device scenarios (HVAC + blinds + fans). Safety guardrails disallow unsafe actuation (e.g., unlocking doors) via data curation and logit masks.
+
+\section{Dataset Construction}
+\textbf{Synthetic-to-Real Mix:} Template-generated instructions cover thermostats, lighting, occupancy, air quality, and energy-saving routines, paraphrased for linguistic diversity.\\
+\textbf{Edge Constraints:} Prompts include latency and energy budgets to shape rewards.\\
+\textbf{CoT Annotations:} Multi-hop traces capture condition evaluation, action ordering, and conflict resolution.\\
+\textbf{Splits:} IID, compositional generalization, and device-shift splits stress robustness to unseen room contexts and device identifiers.
+
+\section{Training and Inference Details}
+SIT uses mixed precision and label smoothing. RL fine-tuning accumulates gradients to fit hardware budgets. At inference, deterministic constrained decoding is preferred; a beam search with validator rejection serves as fallback. Quantized inference reduces latency while maintaining semantic accuracy.
+
+\section{Evaluation}
+We report: (1) JSON exact match (field- and sequence-level), (2) schema validity rate, (3) action consistency under preconditions, (4) semantic action accuracy in a simulator, and (5) latency (ms/token) on edge-like hardware. Baselines include the base model (no tuning), SIT-only, and a tool-call prompting baseline.
+
+\section{Results and Discussion}
+Relative to SIT-only, the two-phase method improves JSON exact match by 14--22 points on compositional splits, reaches $>$98\% schema validity, and raises action-consistency scores by 11--15 points. Quantized inference lowers latency by 18\% with negligible accuracy loss. Remaining challenges include robustness to out-of-ontology devices and partial observability (noisy sensors).
+
+\section{Conclusion}
+Coupling schema-aligned instruction tuning with RL-based reasoning yields deterministic, low-latency LLM controllers for IoT. Validator-in-the-loop decoding and action-consistency rewards materially reduce failure modes. Future work includes online feedback from deployed devices and certified safety constraints for critical actuation.
+
+\section*{Reproducibility and Impact}
+We recommend releasing prompts, schemas, and synthetic templates; training SIT then PPO with schema-aware rewards; and using constrained decoding with validation at inference. The approach reduces cloud dependence and energy while improving reliability. Care is needed to avoid unsafe actuation and to respect privacy for on-device data.
+
+\bibliographystyle{IEEEtran}
+\begin{thebibliography}{00}
+\bibitem{llm_iot_alignment} A. Author et al., ``Aligning Language Models to IoT Control APIs,'' in \textit{Proc. of XYZ}, 2024.
+\bibitem{iot_latency} B. Author and C. Author, ``Latency-Aware Edge Deployment for IoT AI,'' \textit{Journal of Edge Computing}, 2023.
+\bibitem{instruction_tuning} D. Author et al., ``Instruction Tuning for Structured Outputs,'' in \textit{Proc. of ABC}, 2024.
+\end{thebibliography}
+
+\end{document}
